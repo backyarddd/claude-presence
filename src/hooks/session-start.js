@@ -25,8 +25,10 @@ async function main() {
     if (!sessionId) return;
 
     // Detect project name and git branch
-    const project = path.basename(cwd);
-    let branch = 'unknown';
+    let project = path.basename(cwd);
+    let branch = null;
+
+    // Try to get git repo name and branch
     try {
       branch = execSync('git rev-parse --abbrev-ref HEAD', {
         cwd,
@@ -35,7 +37,23 @@ async function main() {
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
       }).trim();
+
+      // Use git repo root folder name as project name (more accurate than cwd)
+      const repoRoot = execSync('git rev-parse --show-toplevel', {
+        cwd,
+        timeout: 2000,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true,
+      }).trim();
+      project = path.basename(repoRoot);
     } catch {}
+
+    // Don't expose user directory names (e.g. "david", "john")
+    const homedir = require('os').homedir();
+    if (cwd === homedir || cwd === homedir.replace(/\\/g, '/')) {
+      project = 'Home';
+    }
 
     // Write initial bridge state
     const bridge = require('../bridge');
