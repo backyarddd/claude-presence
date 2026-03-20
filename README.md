@@ -1,4 +1,4 @@
-# claude-presence
+# Discord Presence for Claude Code
 
 Discord Rich Presence for [Claude Code](https://claude.ai/code) CLI. Automatically shows your AI coding session on your Discord profile.
 
