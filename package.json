@@ -1,0 +1,43 @@
+{
+  "name": "claude-presence",
+  "version": "1.0.0",
+  "description": "Discord Rich Presence for Claude Code CLI - show your AI coding session on Discord",
+  "main": "src/daemon.js",
+  "bin": {
+    "claude-presence": "./bin/cli.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "discord",
+    "rich-presence",
+    "claude",
+    "claude-code",
+    "ai",
+    "coding",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/backyarddd/claude-presence.git"
+  },
+  "bugs": {
+    "url": "https://github.com/backyarddd/claude-presence/issues"
+  },
+  "homepage": "https://github.com/backyarddd/claude-presence#readme",
+  "dependencies": {
+    "@xhayper/discord-rpc": "^1.3.1"
+  }
+}
