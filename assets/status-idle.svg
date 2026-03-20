@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1025"/>
+      <stop offset="100%" stop-color="#0f0a18"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="512" cy="512" r="480" fill="url(#bg)"/>
+  <!-- Moon crescent (idle/sleep) -->
+  <g transform="translate(512,470)">
+    <!-- Moon body -->
+    <circle cx="-30" cy="0" r="220" fill="#A78BFA"/>
+    <!-- Cutout circle to make crescent -->
+    <circle cx="80" cy="-80" r="180" fill="#1a1025"/>
+    <!-- Z letters for sleeping -->
+    <g fill="none" stroke="#C4B5FD" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Large Z -->
+      <polyline points="200,-120 310,-120 200,-10 310,-10"/>
+      <!-- Medium Z -->
+      <polyline points="300,-220 380,-220 300,-150 380,-150"/>
+      <!-- Small Z -->
+      <polyline points="350,-300 410,-300 350,-250 410,-250"/>
+    </g>
+  </g>
+</svg>
