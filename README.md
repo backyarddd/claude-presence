@@ -1,164 +1,141 @@
 # claude-presence
 
-Discord Rich Presence for [Claude Code](https://claude.ai/code) CLI. Automatically shows your AI coding session on your Discord profile - what you're working on, which model, token usage, cost, and more.
+Discord Rich Presence for [Claude Code](https://claude.ai/code) CLI. Automatically shows your AI coding session on your Discord profile.
 
 ![Discord](https://img.shields.io/badge/Discord-Rich%20Presence-5865F2?style=flat&logo=discord&logoColor=white)
 ![Node](https://img.shields.io/badge/Node.js-%3E%3D18-339933?style=flat&logo=node.js&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=flat)
 
+## Quick Start (2 commands)
+
+**Works out of the box.** No Discord bot setup required - the app comes pre-configured with a shared Discord Application so you can start immediately.
+
+```bash
+npm install -g claude-presence
+claude-presence setup
+```
+
+That's it. Start a Claude Code session and your Discord profile will show what you're working on.
+
 ## What It Shows
 
-Your Discord profile displays real-time info from your Claude Code session:
+| Field | Example |
+|-------|---------|
+| **Project** | `Working on my-app (main)` |
+| **Model** | `Opus`, `Sonnet`, `Haiku` |
+| **Tokens** | `29.5k tokens` |
+| **Cost** | `$0.70` |
+| **Elapsed** | `01:23:45 elapsed` |
+| **Activity** | `Editing app.tsx`, `Running bash`, `Searching codebase` |
+| **Status icon** | Coding / Thinking / Idle |
+| **Multi-session** | `[3 sessions]` with aggregated totals |
 
-| Field | Example | Source |
-|-------|---------|--------|
-| **Project** | `Working on my-app (main)` | Git directory + branch |
-| **Model** | `Opus`, `Sonnet`, `Haiku` | Active Claude model |
-| **Tokens** | `29.5k tokens` | Cumulative input + output |
-| **Cost** | `$0.70` | Session cost in USD |
-| **Elapsed** | `01:23:45 elapsed` | Auto-calculated by Discord |
-| **Activity** | `Editing app.tsx` | What Claude is doing right now |
-| **Status** | Coding / Thinking / Idle | Small icon overlay |
-| **Sessions** | `[2 sessions]` | Multi-instance count |
+### Activity Detection
+
+| What Claude Is Doing | Discord Shows |
+|---------------------|---------------|
+| Editing or writing files | `Editing filename.ts` |
+| Reading files | `Reading filename.ts` |
+| Running terminal commands | `Running terminal command` |
+| Searching code (Grep/Glob) | `Searching codebase` |
+| Web search or fetch | `Searching the web` |
+| Running subagents | `Running subagent` |
+| Waiting for you | `Waiting for input` |
 
 ### Multi-Session Support
 
 Running multiple Claude Code instances? The presence automatically:
 - Shows the count: `Working on my-app (main) [3 sessions]`
 - Aggregates total tokens and cost across all sessions
-- Displays the most recently active session's project and activity
+- Displays the most recently active session's details
 - Shows per-session token breakdown on hover
 
-## Quick Start
+### Cost Calculation
 
-### 1. Install
+Cost is calculated using current Claude API pricing (Dec 2025):
 
-```bash
-npm install -g claude-presence
-```
+| Model | Input (per 1M tokens) | Output (per 1M tokens) |
+|-------|----------------------|------------------------|
+| Opus 4.5 | $15.00 | $75.00 |
+| Sonnet 4.5 | $3.00 | $15.00 |
+| Sonnet 4 | $3.00 | $15.00 |
+| Haiku 4.5 | $1.00 | $5.00 |
 
-### 2. Set Up Discord Application
-
-You need a free Discord Application for the images to show up. This takes about 2 minutes:
-
-1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click **New Application** and give it a name (this is what shows on your profile, e.g. "ClaudePresence")
-3. Copy the **Application ID** from the General Information page
-4. Go to **Rich Presence** > **Art Assets** in the left sidebar
-5. Upload these 4 images (included in the `assets/` folder of this repo):
-
-| Asset Name | File | Description |
-|-----------|------|-------------|
-| `claude-logo` | `assets/claude-logo.png` | Main large image |
-| `status-coding` | `assets/status-coding.png` | Small icon - coding |
-| `status-thinking` | `assets/status-thinking.png` | Small icon - thinking |
-| `status-idle` | `assets/status-idle.png` | Small icon - idle |
-
-> **Important:** The asset names in Discord must match exactly: `claude-logo`, `status-coding`, `status-thinking`, `status-idle`
-
-6. Set your Application ID as an environment variable. Add this to your shell profile (`~/.bashrc`, `~/.zshrc`, PowerShell `$PROFILE`, etc.):
-
-```bash
-# Bash / Zsh
-export CLAUDE_PRESENCE_CLIENT_ID="your-application-id-here"
-```
-
-```powershell
-# PowerShell
-$env:CLAUDE_PRESENCE_CLIENT_ID = "your-application-id-here"
-```
-
-### 3. Install Hooks
-
-```bash
-claude-presence setup
-```
-
-That's it. Start a new Claude Code session and check your Discord profile.
+If Claude Code provides cost data directly, that value is used. Otherwise, cost is calculated from the token count and model pricing above.
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `claude-presence setup` | Install hooks into Claude Code settings |
-| `claude-presence uninstall` | Remove all hooks and restore original settings |
-| `claude-presence status` | Show hook status, active sessions, and diagnostics |
-| `claude-presence --version` | Show version |
+| `claude-presence setup` | Install hooks into Claude Code |
+| `claude-presence uninstall` | Remove everything and restore original settings |
+| `claude-presence status` | Show hook status, active sessions, diagnostics |
 | `claude-presence --help` | Show help |
 
 ## How It Works
 
-claude-presence uses Claude Code's [hook system](https://docs.anthropic.com/en/docs/claude-code/hooks) to capture session data without modifying Claude Code itself.
-
-### Architecture
+claude-presence uses Claude Code's [hook system](https://docs.anthropic.com/en/docs/claude-code/hooks) to capture session data:
 
 ```
 Claude Code
   |
-  |-- SessionStart hook ----> Spawns background daemon
-  |-- StatusLine hook ------> Captures tokens, cost, model, context %
-  |-- PostToolUse hook -----> Tracks activity (editing, searching, running)
-  |-- Stop hook ------------> Detects idle state
-  |-- SessionEnd hook ------> Kills daemon, cleans up
+  |-- SessionStart -----> Spawns background daemon
+  |-- StatusLine -------> Captures tokens, cost, model
+  |-- PostToolUse ------> Tracks activity (editing, searching, etc.)
+  |-- Stop -------------> Detects idle state
+  |-- SessionEnd -------> Kills daemon, cleans up
   |
   v
-Bridge File (JSON)  <------>  Background Daemon  ------>  Discord RPC
-(temp directory)               (watches for changes)      (named pipe)
+Bridge File (JSON)  <-->  Background Daemon  --->  Discord RPC
 ```
 
-### Components
-
-| Component | Description |
-|-----------|-------------|
-| **Hook scripts** | Short-lived Node.js scripts invoked by Claude Code on events. They read event data from stdin and write to a JSON bridge file. |
-| **Bridge file** | A JSON file in your temp directory (`%TEMP%/claude-presence/` or `/tmp/claude-presence/`). Each session gets its own file. Hooks write to it, the daemon reads from it. |
-| **Background daemon** | A long-running Node.js process that watches the bridge file and pushes updates to Discord via RPC. One daemon per session. |
-| **StatusLine wrapper** | Captures rich session data (model, tokens, cost) and chains to your existing statusline so nothing breaks. |
-
-### Activity Detection
-
-The `PostToolUse` hook maps Claude's tools to human-readable activity:
-
-| Claude Tool | Discord Shows |
-|------------|---------------|
-| `Edit` / `Write` | Editing filename.ts |
-| `Read` | Reading filename.ts |
-| `Bash` | Running terminal command |
-| `Grep` / `Glob` | Searching codebase |
-| `WebSearch` | Searching the web |
-| `WebFetch` | Fetching web content |
-| `Agent` | Running subagent |
-| (idle) | Waiting for input |
+- **Hook scripts** are short-lived processes invoked by Claude Code on events
+- **Bridge file** is a JSON file in your temp directory that hooks write to
+- **Background daemon** watches the bridge file and pushes updates to Discord
+- **StatusLine wrapper** chains with your existing statusline (GSD, etc.) so nothing breaks
 
 ## Features
 
-- **Zero config after setup** - hooks activate automatically on every Claude Code session
-- **Non-destructive** - works alongside existing hooks (GSD, custom hooks, etc.)
-- **StatusLine chaining** - preserves your existing statusline output
-- **Multi-session aggregation** - tracks all concurrent instances, shows totals
-- **Graceful degradation** - if Discord isn't running, hooks work silently with no errors
-- **Auto-reconnect** - daemon reconnects to Discord if it restarts mid-session
-- **Orphan protection** - daemon self-terminates if session dies unexpectedly (10 min timeout)
-- **Idempotent setup** - safe to run `setup` multiple times
-- **Clean uninstall** - restores your original settings exactly
+- **Zero config** - works immediately after `npm install -g` and `setup`
+- **Pre-configured Discord app** - no bot creation needed
+- **Non-destructive** - works alongside existing hooks
+- **StatusLine chaining** - preserves your existing statusline
+- **Multi-session aggregation** - tracks all concurrent instances
+- **Built-in cost calculation** - uses Claude API pricing when direct cost isn't available
+- **Graceful degradation** - if Discord isn't running, no errors
+- **Auto-reconnect** - daemon reconnects if Discord restarts
+- **Orphan protection** - daemon self-terminates if session dies
+- **Clean uninstall** - restores settings exactly as they were
 
-## Configuration
+## Advanced: Use Your Own Discord Application (Optional)
 
-### Environment Variables
+If you want to customize the app name, images, or run your own Discord Application:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `CLAUDE_PRESENCE_CLIENT_ID` | Your Discord Application ID | Built-in default |
-| `CLAUDE_CONFIG_DIR` | Custom Claude config directory | `~/.claude` |
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click **New Application** and name it whatever you want (this shows on your Discord profile)
+3. Copy the **Application ID**
+4. Go to **Rich Presence** > **Art Assets** and upload these images (found in the `assets/` folder):
 
-### What Setup Modifies
+| Asset Name (exact) | File | Description |
+|-----------|------|-------------|
+| `claude-logo` | `assets/claude-logo.png` | Main large image |
+| `status-coding` | `assets/status-coding.png` | Small icon for coding |
+| `status-thinking` | `assets/status-thinking.png` | Small icon for thinking |
+| `status-idle` | `assets/status-idle.png` | Small icon for idle |
 
-`claude-presence setup` adds entries to `~/.claude/settings.json`:
+5. Set your Application ID as an environment variable:
 
-- Adds hooks to `SessionStart`, `PostToolUse`, `Stop`, and `SessionEnd` arrays
-- Replaces `statusLine` with a wrapper that captures data and chains to your original
+```bash
+# Bash / Zsh - add to ~/.bashrc or ~/.zshrc
+export CLAUDE_PRESENCE_CLIENT_ID="your-application-id-here"
+```
 
-Your original statusline command is saved to `~/.claude/claude-presence.json` and fully restored on `uninstall`.
+```powershell
+# PowerShell - add to $PROFILE
+$env:CLAUDE_PRESENCE_CLIENT_ID = "your-application-id-here"
+```
+
+This overrides the built-in default. Run `claude-presence setup` again if you already set up.
 
 ## Uninstall
 
@@ -167,91 +144,36 @@ claude-presence uninstall
 npm uninstall -g claude-presence
 ```
 
-This:
-1. Removes all claude-presence hooks from `settings.json`
-2. Restores your original statusline
-3. Kills any running daemons
-4. Cleans up bridge files and config
+Restores your original Claude Code settings exactly as they were.
 
 ## Troubleshooting
 
-### Presence not showing on Discord
+**Presence not showing:**
+- Discord desktop app must be running (not browser)
+- Run `claude-presence status` to check hooks are installed
+- Start a **new** Claude Code session (hooks activate on session start)
+- Check Discord Settings > Activity Privacy > "Display current activity" is enabled
 
-1. **Discord desktop app must be running** - Rich Presence doesn't work with Discord in browser
-2. **Check hooks are installed:** `claude-presence status`
-3. **Check Client ID is set:** `echo $CLAUDE_PRESENCE_CLIENT_ID`
-4. **Start a new session** - hooks only activate on session start, not mid-session
-5. **Check Discord settings** - Make sure "Activity Status" is enabled in Discord Settings > Activity Privacy
-
-### StatusLine broken after install
-
+**StatusLine broken after install:**
 ```bash
 claude-presence uninstall
 claude-presence setup
 ```
 
-This re-saves your original statusline and re-chains it.
-
-### Presence shows wrong project
-
-Each session gets its own daemon. The most recently active session's project is displayed. If you have multiple sessions, the `[N sessions]` badge appears.
-
-### Presence stuck / not clearing
-
+**Presence stuck or not clearing:**
 ```bash
-# Check for orphaned daemons
-claude-presence status
-
-# Force cleanup
-claude-presence uninstall
+claude-presence status    # check for orphaned daemons
+claude-presence uninstall # force cleanup
 ```
-
-### Hooks not firing
-
-Make sure your `~/.claude/settings.json` has the hook entries. Run `claude-presence setup` to re-install them.
 
 ## Requirements
 
-- **Node.js** >= 18
-- **Discord** desktop app (not browser)
-- **Claude Code** CLI
-
-## File Structure
-
-```
-claude-presence/
-├── package.json              # npm package config
-├── bin/
-│   └── cli.js                # CLI entry point
-├── src/
-│   ├── config.js             # Constants and paths
-│   ├── bridge.js             # Bridge file I/O (atomic writes)
-│   ├── discord.js            # Discord RPC wrapper with auto-reconnect
-│   ├── daemon.js             # Background process
-│   ├── statusline.js         # StatusLine wrapper with chaining
-│   ├── hooks/
-│   │   ├── session-start.js  # Spawns daemon
-│   │   ├── session-end.js    # Kills daemon
-│   │   ├── post-tool-use.js  # Tracks activity
-│   │   └── stop.js           # Detects idle
-│   └── cli/
-│       ├── setup.js          # Installs hooks
-│       └── uninstall.js      # Removes hooks
-└── assets/
-    ├── claude-logo.png       # Discord large image
-    ├── status-coding.png     # Discord small image - coding
-    ├── status-thinking.png   # Discord small image - thinking
-    └── status-idle.png       # Discord small image - idle
-```
-
-## Contributing
-
-1. Fork the repo
-2. Create a feature branch
-3. Make your changes
-4. Test with `claude-presence setup` in a real Claude Code session
-5. Submit a PR
+- Node.js >= 18
+- Discord desktop app
+- Claude Code CLI
 
 ## License
 
 MIT
+
+Status icons from [Heroicons](https://heroicons.com) (MIT License).

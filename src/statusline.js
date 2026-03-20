@@ -24,31 +24,37 @@ async function main() {
 
     if (sessionId) {
       const bridge = require('./bridge');
+      const config = require('./config');
 
       const bridgeData = {
         timestamp: Math.floor(Date.now() / 1000),
       };
 
       // Model info
+      const modelId = input.model?.id || '';
       if (input.model) {
         bridgeData.model = input.model.display_name || input.model.id || 'Claude';
+        bridgeData.model_id = modelId;
         bridgeData.version = input.version;
       }
 
       // Token usage
+      const tokensIn = input.context_window?.total_input_tokens || 0;
+      const tokensOut = input.context_window?.total_output_tokens || 0;
       if (input.context_window) {
-        const cw = input.context_window;
         bridgeData.tokens = {
-          in: cw.total_input_tokens || 0,
-          out: cw.total_output_tokens || 0,
-          total: (cw.total_input_tokens || 0) + (cw.total_output_tokens || 0),
+          in: tokensIn,
+          out: tokensOut,
+          total: tokensIn + tokensOut,
         };
-        bridgeData.context_remaining_pct = cw.remaining_percentage;
+        bridgeData.context_remaining_pct = input.context_window.remaining_percentage;
       }
 
-      // Cost
-      if (input.cost) {
-        bridgeData.cost_usd = input.cost.total_cost_usd || 0;
+      // Cost - use Claude Code's value if available, otherwise calculate from tokens
+      if (input.cost && input.cost.total_cost_usd != null) {
+        bridgeData.cost_usd = input.cost.total_cost_usd;
+      } else if (tokensIn || tokensOut) {
+        bridgeData.cost_usd = config.calculateCost(modelId, tokensIn, tokensOut);
       }
 
       bridge.write(sessionId, bridgeData);

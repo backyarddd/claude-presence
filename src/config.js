@@ -17,6 +17,26 @@ const IMAGE_KEYS = {
   idle: 'status-idle',
 };
 
+// Claude API pricing (per 1M tokens) - Dec 2025
+const MODEL_PRICING = {
+  'claude-opus-4-5-20251101':   { input: 15.00, output: 75.00 },
+  'claude-opus-4-6':            { input: 15.00, output: 75.00 },
+  'claude-sonnet-4-5-20241022': { input: 3.00,  output: 15.00 },
+  'claude-sonnet-4-20250514':   { input: 3.00,  output: 15.00 },
+  'claude-sonnet-4-6':          { input: 3.00,  output: 15.00 },
+  'claude-haiku-4-5-20241022':  { input: 1.00,  output: 5.00 },
+};
+
+// Fallback pricing if model not recognized
+const DEFAULT_PRICING = { input: 3.00, output: 15.00 };
+
+function calculateCost(modelId, inputTokens, outputTokens) {
+  const pricing = MODEL_PRICING[modelId] || DEFAULT_PRICING;
+  const inputCost = (inputTokens / 1_000_000) * pricing.input;
+  const outputCost = (outputTokens / 1_000_000) * pricing.output;
+  return inputCost + outputCost;
+}
+
 const IDLE_TIMEOUT_MS = 120_000;
 const RECONNECT_INTERVAL_MS = 15_000;
 const ORPHAN_TIMEOUT_MS = 600_000;
@@ -65,4 +85,7 @@ module.exports = {
   getPresenceConfig,
   savePresenceConfig,
   getOriginalStatusline,
+  MODEL_PRICING,
+  DEFAULT_PRICING,
+  calculateCost,
 };
