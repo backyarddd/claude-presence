@@ -5,22 +5,8 @@
       <stop offset="100%" stop-color="#0f0a18"/>
     </linearGradient>
   </defs>
-  <!-- Background circle -->
   <circle cx="512" cy="512" r="480" fill="url(#bg)"/>
-  <!-- Moon crescent (idle/sleep) -->
-  <g transform="translate(512,470)">
-    <!-- Moon body -->
-    <circle cx="-30" cy="0" r="220" fill="#A78BFA"/>
-    <!-- Cutout circle to make crescent -->
-    <circle cx="80" cy="-80" r="180" fill="#1a1025"/>
-    <!-- Z letters for sleeping -->
-    <g fill="none" stroke="#C4B5FD" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
-      <!-- Large Z -->
-      <polyline points="200,-120 310,-120 200,-10 310,-10"/>
-      <!-- Medium Z -->
-      <polyline points="300,-220 380,-220 300,-150 380,-150"/>
-      <!-- Small Z -->
-      <polyline points="350,-300 410,-300 350,-250 410,-250"/>
-    </g>
+  <g transform="translate(212,212) scale(30)">
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M7.45519 2.00395C7.68518 2.18765 7.78646 2.4889 7.71414 2.77423C7.57443 3.32547 7.5 3.90348 7.5 4.49996C7.5 8.36595 10.634 11.5 14.5 11.5C15.6435 11.5 16.721 11.2263 17.6724 10.7417C17.9347 10.608 18.2509 10.6402 18.4809 10.8239C18.7109 11.0076 18.8122 11.3089 18.7399 11.5942C17.8069 15.2755 14.4725 18 10.5 18C5.80558 18 2 14.1944 2 9.49996C2 6.19139 3.89048 3.32567 6.64671 1.92168C6.909 1.78807 7.22519 1.82025 7.45519 2.00395Z" fill="#A78BFA"/>
   </g>
 </svg>
