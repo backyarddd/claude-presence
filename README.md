@@ -11,11 +11,13 @@ Discord Rich Presence for [Claude Code](https://claude.ai/code) CLI. Automatical
 **Works out of the box.** No Discord bot setup required - the app comes pre-configured with a shared Discord Application so you can start immediately.
 
 ```bash
-npm install -g claude-presence
+npm install -g github:backyarddd/claude-presence
 claude-presence setup
 ```
 
-That's it. Start a Claude Code session and your Discord profile will show what you're working on.
+> **Install from GitHub, not from the npm name.** The `claude-presence` name on npm belongs to an unrelated package by a different author. Installing from GitHub requires `git` on your PATH.
+
+That's it. Start a **new** Claude Code session and your Discord profile will show what you're working on. `setup` writes hooks into `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) and existing sessions do not pick them up until they restart.
 
 ## What It Shows
 
@@ -114,7 +116,7 @@ If you want to customize the app name, images, or run your own Discord Applicati
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
 2. Click **New Application** and name it whatever you want (this shows on your Discord profile)
 3. Copy the **Application ID**
-4. Go to **Rich Presence** > **Art Assets** and upload these images (found in the `assets/` folder):
+4. Go to **Rich Presence** > **Art Assets** and upload these images. They are not shipped with the install, so download them from the [`assets/` folder in this repo](https://github.com/backyarddd/claude-presence/tree/main/assets):
 
 | Asset Name (exact) | File | Description |
 |-----------|------|-------------|
@@ -140,11 +142,21 @@ This overrides the built-in default. Run `claude-presence setup` again if you al
 ## Uninstall
 
 ```bash
-claude-presence uninstall
+claude-presence uninstall   # remove hooks first, while the CLI still exists
 npm uninstall -g claude-presence
 ```
 
-Restores your original Claude Code settings exactly as they were.
+Restores your original Claude Code settings exactly as they were. Run `uninstall` **before** removing the package - the hook paths point at the installed files, so uninstalling the package first leaves dead hooks in `settings.json`.
+
+## Updating
+
+```bash
+claude-presence uninstall
+npm install -g github:backyarddd/claude-presence
+claude-presence setup
+```
+
+`setup` skips hook events that already have a claude-presence hook, so it will not repair stale paths on its own. Run `uninstall` first whenever the install location may have moved.
 
 ## Troubleshooting
 
@@ -166,9 +178,22 @@ claude-presence status    # check for orphaned daemons
 claude-presence uninstall # force cleanup
 ```
 
+**`claude-presence: command not found`:**
+- npm's global bin directory is not on your PATH. Run `npm prefix -g` - that directory (or its `bin` subfolder on macOS/Linux) must be on your PATH.
+- If you also have an older copy linked with `npm link`, it can shadow the global install. Check with `which -a claude-presence` (`where claude-presence` on Windows) and remove the stale one.
+
+**Hooks broke after switching Node versions (nvm, fnm, volta):**
+`setup` writes absolute paths to the installed package, and each Node version has its own global folder. Reinstall on the new version:
+```bash
+claude-presence uninstall
+npm install -g github:backyarddd/claude-presence
+claude-presence setup
+```
+
 ## Requirements
 
 - Node.js >= 18
+- `git` (npm installs this package from GitHub)
 - Discord desktop app
 - Claude Code CLI
 
