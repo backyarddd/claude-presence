@@ -1,10 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
+const { extractOwnHooks } = require('./setup');
 
-function isClaudePresenceHook(entry) {
-  if (!entry || !entry.hooks) return false;
-  return entry.hooks.some((h) => h.command && h.command.includes('claude-presence'));
+function writeSettings(settings) {
+  const tmpPath = config.SETTINGS_PATH + '.tmp';
+  fs.writeFileSync(tmpPath, JSON.stringify(settings, null, 2));
+  fs.renameSync(tmpPath, config.SETTINGS_PATH);
 }
 
 function run() {
@@ -19,13 +21,14 @@ function run() {
     return;
   }
 
-  // Remove claude-presence hooks from all events
+  // Remove claude-presence hooks from all events, leaving the user's own hooks in place
+  // even when they share an entry with ours.
   let hooksRemoved = 0;
   if (settings.hooks) {
     for (const eventName of Object.keys(settings.hooks)) {
-      const before = settings.hooks[eventName].length;
-      settings.hooks[eventName] = settings.hooks[eventName].filter((entry) => !isClaudePresenceHook(entry));
-      hooksRemoved += before - settings.hooks[eventName].length;
+      if (!Array.isArray(settings.hooks[eventName])) continue;
+
+      hooksRemoved += extractOwnHooks(settings.hooks[eventName]).length;
 
       // Clean up empty arrays
       if (settings.hooks[eventName].length === 0) {
@@ -36,16 +39,16 @@ function run() {
 
   // Restore original statusline
   const presenceConfig = config.getPresenceConfig();
-  if (presenceConfig.originalStatusline) {
-    settings.statusLine = { type: 'command', command: presenceConfig.originalStatusline };
+  const originalStatusline = presenceConfig.originalStatusline;
+  if (originalStatusline && !config.isOwnedCommand(originalStatusline)) {
+    settings.statusLine = { type: 'command', command: originalStatusline };
     console.log('  Restored original statusline.');
-  } else if (settings.statusLine?.command?.includes('claude-presence')) {
+  } else if (config.isOwnedCommand(settings.statusLine?.command)) {
     delete settings.statusLine;
     console.log('  Removed statusline (no original to restore).');
   }
 
-  // Write settings back
-  fs.writeFileSync(config.SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  writeSettings(settings);
   console.log(`  ${hooksRemoved} hook(s) removed.`);
 
   // Kill running daemons
