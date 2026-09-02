@@ -63,7 +63,7 @@ function showStatus() {
     console.log(`\n  Active sessions: ${sessions.length}`);
     console.log(`  Running daemons: ${daemons.length}`);
 
-    let totalTokensIn = 0, totalTokensOut = 0, totalCost = 0;
+    let totalTokensIn = 0, totalTokensOut = 0, totalCost = 0, anyEstimated = false;
 
     for (const sessionFile of sessions) {
       try {
@@ -78,8 +78,9 @@ function showStatus() {
           totalTokensOut += data.tokens.out || 0;
         }
         if (data.cost_usd != null) {
-          console.log(`    Cost: $${data.cost_usd.toFixed(4)}`);
+          console.log(`    Cost: $${data.cost_usd.toFixed(4)}${data.cost_estimated ? ' (estimated from tokens)' : ''}`);
           totalCost += data.cost_usd;
+          if (data.cost_estimated) anyEstimated = true;
         }
       } catch {}
     }
@@ -87,7 +88,7 @@ function showStatus() {
     if (sessions.length > 1) {
       console.log(`\n  --- Totals across ${sessions.length} sessions ---`);
       console.log(`  Tokens: ${totalTokensIn} in / ${totalTokensOut} out (${totalTokensIn + totalTokensOut} total)`);
-      console.log(`  Cost: $${totalCost.toFixed(4)}`);
+      console.log(`  Cost: $${totalCost.toFixed(4)}${anyEstimated ? ' (includes token estimates)' : ''}`);
     }
   } catch {
     console.log('\n  No active sessions.');

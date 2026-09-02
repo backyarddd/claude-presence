@@ -17,32 +17,40 @@ claude-presence setup
 
 > **Install from GitHub, not from the npm name.** The `claude-presence` name on npm belongs to an unrelated package by a different author. Installing from GitHub requires `git` on your PATH.
 
-That's it. Start a **new** Claude Code session and your Discord profile will show what you're working on. `setup` writes hooks into `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) and existing sessions do not pick them up until they restart.
+That's it. Start a **new** Claude Code session and your Discord profile will show what you're working on.
+
+`setup` writes hooks and a statusline into `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). Sessions that are already running do not pick them up until they restart.
 
 ## What It Shows
 
 | Field | Example |
 |-------|---------|
 | **Project** | `Working on my-app (main)` |
-| **Model** | `Opus`, `Sonnet`, `Haiku` |
+| **Model** | `Opus 5 (1M context)`, `Sonnet 5`, `Haiku 4.5` |
 | **Tokens** | `29.5k tokens` |
-| **Cost** | `$0.70` |
+| **Cost** | `$0.70` (or `~$0.70` when estimated - see [Cost](#cost)) |
 | **Elapsed** | `01:23:45 elapsed` |
-| **Activity** | `Editing app.tsx`, `Running bash`, `Searching codebase` |
+| **Activity** | `Editing app.tsx`, `Running terminal command`, `Searching codebase` |
 | **Status icon** | Coding / Thinking / Idle |
 | **Multi-session** | `[3 sessions]` with aggregated totals |
 
+The model line is Claude Code's own display name, so it tracks whatever you have selected - including context-tier variants like `Opus 5 (1M context)`.
+
 ### Activity Detection
 
-| What Claude Is Doing | Discord Shows |
+| Tool Claude used | Discord shows |
 |---------------------|---------------|
-| Editing or writing files | `Editing filename.ts` |
-| Reading files | `Reading filename.ts` |
-| Running terminal commands | `Running terminal command` |
-| Searching code (Grep/Glob) | `Searching codebase` |
-| Web search or fetch | `Searching the web` |
-| Running subagents | `Running subagent` |
-| Waiting for you | `Waiting for input` |
+| `Write`, `Edit`, `NotebookEdit` | `Editing filename.ts` |
+| `Read` | `Reading filename.ts` |
+| `Bash` | `Running terminal command` |
+| `Grep` | `Searching codebase` |
+| `Glob` | `Finding files` |
+| `WebSearch` | `Searching the web` |
+| `WebFetch` | `Fetching web content` |
+| `Agent` | `Running subagent` |
+| `Skill` | `Using a skill` |
+| Anything else | `Using <ToolName>` |
+| Turn finished, or 2 min of silence | `Waiting for input` |
 
 ### Multi-Session Support
 
@@ -52,26 +60,43 @@ Running multiple Claude Code instances? The presence automatically:
 - Displays the most recently active session's details
 - Shows per-session token breakdown on hover
 
-### Cost Calculation
+## Cost
 
-Cost is calculated using current Claude API pricing (Dec 2025):
+Claude Code reports the session's actual cost in the statusline payload, and that number is used whenever it is present. Only when it is missing does claude-presence estimate the cost from token counts and the pricing table below - an estimate is prefixed with `~` on Discord and labelled `(estimated from tokens)` in `claude-presence status`.
 
-| Model | Input (per 1M tokens) | Output (per 1M tokens) |
-|-------|----------------------|------------------------|
-| Opus 4.5 | $15.00 | $75.00 |
-| Sonnet 4.5 | $3.00 | $15.00 |
-| Sonnet 4 | $3.00 | $15.00 |
-| Haiku 4.5 | $1.00 | $5.00 |
+Claude API list pricing, USD per million tokens ([source](https://platform.claude.com/docs/en/about-claude/pricing), checked 2026-09-01):
 
-If Claude Code provides cost data directly, that value is used. Otherwise, cost is calculated from the token count and model pricing above.
+| Model | Model ID | Input | Output |
+|-------|----------|-------|--------|
+| Claude Fable 5.1 | `claude-fable-5-1` | $10.00 | $50.00 |
+| Claude Fable 5 | `claude-fable-5` | $10.00 | $50.00 |
+| Claude Opus 5 | `claude-opus-5` | $5.00 | $25.00 |
+| Claude Opus 4.8 | `claude-opus-4-8` | $5.00 | $25.00 |
+| Claude Opus 4.7 | `claude-opus-4-7` | $5.00 | $25.00 |
+| Claude Opus 4.6 | `claude-opus-4-6` | $5.00 | $25.00 |
+| Claude Opus 4.5 | `claude-opus-4-5` | $5.00 | $25.00 |
+| Claude Sonnet 5 | `claude-sonnet-5` | $2.00 | $10.00 |
+| Claude Sonnet 4.6 | `claude-sonnet-4-6` | $3.00 | $15.00 |
+| Claude Sonnet 4.5 | `claude-sonnet-4-5` | $3.00 | $15.00 |
+| Claude Haiku 4.5 | `claude-haiku-4-5` | $1.00 | $5.00 |
+
+Deprecated models still served on Bedrock and Google Cloud are also in the table (Opus 4.1 and Opus 4 at $15/$75, Sonnet 4 at $3/$15), as are `claude-mythos-5-1` and `claude-mythos-5`, which price the same as their Fable counterparts. An unrecognised model id falls back to Opus-tier pricing, since an unknown id is usually a model newer than this table.
+
+Notes on how the estimate is derived:
+
+- **Model ids are normalised before lookup.** Claude Code reports ids like `claude-opus-5[1m]`; the context-tier suffix is stripped, and dated snapshots (`claude-haiku-4-5-20251001`) and platform prefixes (`anthropic.claude-opus-5`) resolve to the right entry.
+- **The 1M-token context window is billed at standard rates.** There is no long-context premium to model.
+- **Prompt caching is not modelled.** The statusline reports only total input and output tokens, with no cache breakdown. Cache reads bill at 0.1x the input rate (0.025x on Fable 5.1), so a real session with a warm cache costs meaningfully less than the estimate. Treat an estimate as an upper bound.
+- **Fast mode is not modelled.** `/fast` bills Opus 5 and Opus 4.8 at $10/$50, and the statusline does not report the speed setting - so an estimate for a fast-mode session is low. Claude Code's own reported cost, which is used whenever available, has this right.
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `claude-presence setup` | Install hooks into Claude Code |
+| `claude-presence setup` | Install or repoint hooks in Claude Code settings |
 | `claude-presence uninstall` | Remove everything and restore original settings |
 | `claude-presence status` | Show hook status, active sessions, diagnostics |
+| `claude-presence --version` | Show version |
 | `claude-presence --help` | Show help |
 
 ## How It Works
@@ -96,14 +121,16 @@ Bridge File (JSON)  <-->  Background Daemon  --->  Discord RPC
 - **Background daemon** watches the bridge file and pushes updates to Discord
 - **StatusLine wrapper** chains with your existing statusline (GSD, etc.) so nothing breaks
 
+Hook commands embed the absolute path of the installed package, which is why `setup` repoints existing entries instead of skipping them - see [Updating](#updating).
+
 ## Features
 
 - **Zero config** - works immediately after `npm install -g` and `setup`
 - **Pre-configured Discord app** - no bot creation needed
-- **Non-destructive** - works alongside existing hooks
+- **Non-destructive** - your own hooks in the same events are left untouched
 - **StatusLine chaining** - preserves your existing statusline
 - **Multi-session aggregation** - tracks all concurrent instances
-- **Built-in cost calculation** - uses Claude API pricing when direct cost isn't available
+- **Cost from Claude Code**, with a token-based estimate as fallback
 - **Graceful degradation** - if Discord isn't running, no errors
 - **Auto-reconnect** - daemon reconnects if Discord restarts
 - **Orphan protection** - daemon self-terminates if session dies
@@ -137,7 +164,16 @@ export CLAUDE_PRESENCE_CLIENT_ID="your-application-id-here"
 $env:CLAUDE_PRESENCE_CLIENT_ID = "your-application-id-here"
 ```
 
-This overrides the built-in default. Run `claude-presence setup` again if you already set up.
+This overrides the built-in default. The daemon reads it at session start, so open a new Claude Code session after setting it.
+
+## Updating
+
+```bash
+npm install -g github:backyarddd/claude-presence
+claude-presence setup
+```
+
+Run `setup` after every update. Hook commands contain the absolute path of the installed package, and `setup` rewrites any existing claude-presence hook to point at the current install - so a reinstall, a changed npm prefix, or a Node version switch is repaired by re-running it. Your own hooks in the same events are never touched.
 
 ## Uninstall
 
@@ -146,24 +182,20 @@ claude-presence uninstall   # remove hooks first, while the CLI still exists
 npm uninstall -g claude-presence
 ```
 
-Restores your original Claude Code settings exactly as they were. Run `uninstall` **before** removing the package - the hook paths point at the installed files, so uninstalling the package first leaves dead hooks in `settings.json`.
+Restores your original Claude Code settings exactly as they were. Only claude-presence's own hooks are removed - hooks of yours that share an event, or even the same hook entry, are left in place. Run `uninstall` **before** removing the package - the hook paths point at the installed files, so uninstalling the package first leaves dead hooks in `settings.json`.
 
-## Updating
+## Development
 
 ```bash
-claude-presence uninstall
-npm install -g github:backyarddd/claude-presence
-claude-presence setup
+npm test    # node:test suite covering pricing resolution and settings.json rewriting
 ```
-
-`setup` skips hook events that already have a claude-presence hook, so it will not repair stale paths on its own. Run `uninstall` first whenever the install location may have moved.
 
 ## Troubleshooting
 
 **Presence not showing:**
 - Discord desktop app must be running (not browser)
 - Run `claude-presence status` to check hooks are installed
-- Start a **new** Claude Code session (hooks activate on session start)
+- Start a **new** Claude Code session (the daemon spawns on session start)
 - Check Discord Settings > Activity Privacy > "Display current activity" is enabled
 
 **StatusLine broken after install:**
@@ -180,12 +212,11 @@ claude-presence uninstall # force cleanup
 
 **`claude-presence: command not found`:**
 - npm's global bin directory is not on your PATH. Run `npm prefix -g` - that directory (or its `bin` subfolder on macOS/Linux) must be on your PATH.
-- If you also have an older copy linked with `npm link`, it can shadow the global install. Check with `which -a claude-presence` (`where claude-presence` on Windows) and remove the stale one.
+- An older copy linked with `npm link` can shadow the global install. Check with `which -a claude-presence` (`where claude-presence` on Windows) and remove the stale one.
 
 **Hooks broke after switching Node versions (nvm, fnm, volta):**
-`setup` writes absolute paths to the installed package, and each Node version has its own global folder. Reinstall on the new version:
+Each Node version has its own global folder, so the installed package moved. Reinstall on the new version and re-run `setup` - it repoints the hooks:
 ```bash
-claude-presence uninstall
 npm install -g github:backyarddd/claude-presence
 claude-presence setup
 ```

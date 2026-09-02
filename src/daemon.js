@@ -62,12 +62,14 @@ function aggregateSessions() {
   let totalTokensIn = 0;
   let totalTokensOut = 0;
   let totalCost = 0;
+  let costEstimated = false;
   let earliestStart = Infinity;
 
   for (const session of allSessions) {
     totalTokensIn += session.tokens?.in || 0;
     totalTokensOut += session.tokens?.out || 0;
     totalCost += session.cost_usd || 0;
+    if (session.cost_estimated) costEstimated = true;
 
     const start = session.session_start || Infinity;
     if (start < earliestStart) earliestStart = start;
@@ -81,6 +83,7 @@ function aggregateSessions() {
       tokens_out: totalTokensOut,
       tokens_total: totalTokensIn + totalTokensOut,
       cost_usd: totalCost,
+      cost_estimated: costEstimated,
       earliest_start: earliestStart === Infinity ? null : earliestStart,
     },
   };
@@ -104,7 +107,7 @@ function buildPresence(aggregated) {
   }
 
   // State line: aggregated cost, tokens, model
-  const cost = `$${totals.cost_usd.toFixed(2)}`;
+  const cost = `${totals.cost_estimated ? '~' : ''}$${totals.cost_usd.toFixed(2)}`;
   const tokens = formatTokens(totals.tokens_total);
   const model = primary.model || 'Claude';
   const state = `${cost} | ${tokens} tokens | ${model}`;

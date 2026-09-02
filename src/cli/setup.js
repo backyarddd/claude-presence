@@ -2,6 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const config = require('../config');
 
+const HOOK_SCRIPTS = {
+  SessionStart: 'hooks/session-start.js',
+  PostToolUse: 'hooks/post-tool-use.js',
+  Stop: 'hooks/stop.js',
+  SessionEnd: 'hooks/session-end.js',
+};
+
 function getHookCommand(scriptName) {
   const scriptPath = path.resolve(__dirname, '..', scriptName).replace(/\\/g, '/');
   return `node "${scriptPath}"`;
@@ -12,27 +19,76 @@ function getStatuslineCommand() {
   return `node "${scriptPath}"`;
 }
 
-function isClaudePresenceHook(entry) {
-  if (!entry || !entry.hooks) return false;
-  return entry.hooks.some((h) => h.command && h.command.includes('claude-presence'));
-}
-
 function createHookEntry(command) {
   return {
     hooks: [{ type: 'command', command }],
   };
 }
 
-function addHookToEvent(settings, eventName, command) {
+// Pulls every claude-presence hook out of an event, leaving the user's own hooks - and
+// their entries' matchers - untouched. Returns the commands that were removed.
+function extractOwnHooks(entries) {
+  const removed = [];
+
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
+    if (!entry || !Array.isArray(entry.hooks)) continue;
+
+    const kept = [];
+    for (const hook of entry.hooks) {
+      if (hook && config.isOwnedCommand(hook.command)) {
+        removed.push(hook.command);
+      } else {
+        kept.push(hook);
+      }
+    }
+
+    if (kept.length === entry.hooks.length) continue;
+    if (kept.length === 0) {
+      entries.splice(i, 1);
+    } else {
+      entry.hooks = kept;
+    }
+  }
+
+  return removed;
+}
+
+// Hook commands embed the absolute path of the installed package, so an existing entry
+// can point at a location that no longer exists (reinstall, npm prefix change, Node
+// version switch). Repoint instead of skipping. Returns 'added', 'updated' or 'unchanged'.
+function setHookForEvent(settings, eventName, command) {
   if (!settings.hooks) settings.hooks = {};
-  if (!settings.hooks[eventName]) settings.hooks[eventName] = [];
+  if (!Array.isArray(settings.hooks[eventName])) settings.hooks[eventName] = [];
 
-  // Check if already installed (idempotent)
-  const existing = settings.hooks[eventName].some(isClaudePresenceHook);
-  if (existing) return false;
+  const entries = settings.hooks[eventName];
 
-  settings.hooks[eventName].push(createHookEntry(command));
-  return true;
+  // Already correct: one entry, ours alone in it, no matcher narrowing it. Leave it in place.
+  const alreadyInstalled = entries.some(
+    (entry) =>
+      entry
+      && !entry.matcher
+      && Array.isArray(entry.hooks)
+      && entry.hooks.length === 1
+      && entry.hooks[0]
+      && entry.hooks[0].command === command
+  );
+  const ownCommands = entries
+    .filter((entry) => entry && Array.isArray(entry.hooks))
+    .flatMap((entry) => entry.hooks.filter((hook) => hook && config.isOwnedCommand(hook.command)));
+
+  if (alreadyInstalled && ownCommands.length === 1) return 'unchanged';
+
+  const removed = extractOwnHooks(entries);
+  entries.push(createHookEntry(command));
+
+  return removed.length === 0 ? 'added' : 'updated';
+}
+
+function writeSettings(settings) {
+  const tmpPath = config.SETTINGS_PATH + '.tmp';
+  fs.writeFileSync(tmpPath, JSON.stringify(settings, null, 2));
+  fs.renameSync(tmpPath, config.SETTINGS_PATH);
 }
 
 function run() {
@@ -46,33 +102,49 @@ function run() {
     console.log('No existing settings.json found, creating fresh config.');
   }
 
-  // Save original statusline before we replace it
+  const statuslineCmd = getStatuslineCommand();
+
+  // Remember whatever statusline is in place so uninstall can restore it, and so our
+  // wrapper can chain to it. Never remember one of ours - that would chain to itself.
   const presenceConfig = config.getPresenceConfig();
-  if (!presenceConfig.originalStatusline && settings.statusLine?.command) {
-    presenceConfig.originalStatusline = settings.statusLine.command;
+  const currentStatusline = settings.statusLine?.command;
+  let presenceConfigChanged = false;
+
+  if (presenceConfig.originalStatusline && config.isOwnedCommand(presenceConfig.originalStatusline)) {
+    delete presenceConfig.originalStatusline;
+    presenceConfigChanged = true;
+  }
+
+  if (currentStatusline && !config.isOwnedCommand(currentStatusline)
+      && presenceConfig.originalStatusline !== currentStatusline) {
+    presenceConfig.originalStatusline = currentStatusline;
     presenceConfig.installedAt = new Date().toISOString();
-    config.savePresenceConfig(presenceConfig);
+    presenceConfigChanged = true;
     console.log('  Saved original statusline for chaining.');
   }
 
-  // Add hooks
+  if (presenceConfigChanged) config.savePresenceConfig(presenceConfig);
+
+  // Add or repoint hooks
   let hooksAdded = 0;
-  if (addHookToEvent(settings, 'SessionStart', getHookCommand('hooks/session-start.js'))) hooksAdded++;
-  if (addHookToEvent(settings, 'PostToolUse', getHookCommand('hooks/post-tool-use.js'))) hooksAdded++;
-  if (addHookToEvent(settings, 'Stop', getHookCommand('hooks/stop.js'))) hooksAdded++;
-  if (addHookToEvent(settings, 'SessionEnd', getHookCommand('hooks/session-end.js'))) hooksAdded++;
+  let hooksUpdated = 0;
+  for (const [eventName, script] of Object.entries(HOOK_SCRIPTS)) {
+    const result = setHookForEvent(settings, eventName, getHookCommand(script));
+    if (result === 'added') hooksAdded++;
+    if (result === 'updated') hooksUpdated++;
+  }
 
   // Replace statusline
-  const statuslineCmd = getStatuslineCommand();
   const statuslineChanged = settings.statusLine?.command !== statuslineCmd;
   if (statuslineChanged) {
     settings.statusLine = { type: 'command', command: statuslineCmd };
   }
 
-  // Write settings back
-  fs.writeFileSync(config.SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  writeSettings(settings);
 
-  console.log(`  ${hooksAdded} hook(s) added.`);
+  if (hooksAdded > 0) console.log(`  ${hooksAdded} hook(s) added.`);
+  if (hooksUpdated > 0) console.log(`  ${hooksUpdated} hook(s) repointed to this install.`);
+  if (hooksAdded === 0 && hooksUpdated === 0) console.log('  Hooks already up to date.');
   if (statuslineChanged) {
     console.log('  Statusline updated (original will be chained).');
   }
@@ -103,4 +175,4 @@ function run() {
   console.log('Discord presence will activate on your next Claude Code session.');
 }
 
-module.exports = { run };
+module.exports = { run, setHookForEvent, extractOwnHooks, getHookCommand, getStatuslineCommand };
