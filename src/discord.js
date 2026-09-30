@@ -26,6 +26,11 @@ class DiscordPresence {
       this.client.on('ready', () => {
         this.connected = true;
         this.reconnecting = false;
+        if (this.onReady) this.onReady(); // [patch]
+      });
+      this.client.on('error', () => { // [patch] unhandled 'error' events crashed the daemon
+        this.connected = false;
+        if (!this.destroyed) this._scheduleReconnect();
       });
 
       this.client.on('disconnected', () => {

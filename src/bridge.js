@@ -71,4 +71,31 @@ function readAllSessions() {
   return sessions;
 }
 
-module.exports = { ensureDir, write, read, readAllSessions, remove, writePid, readPid };
+function isAlive(pid) {
+  if (!pid || Number.isNaN(pid)) return false;
+  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
+}
+
+// [patch] Respawn the daemon if it is not running (it used to start only on SessionStart,
+// so a crash or Discord restart killed presence for the rest of the session).
+function ensureDaemon(sessionId, cwd) {
+  try {
+    const data = read(sessionId) || {};
+    if (!data.workspace && cwd) {
+      write(sessionId, {
+        session_id: sessionId,
+        session_start: data.session_start || Date.now(),
+        workspace: { project: path.basename(cwd), branch: null, dir: cwd },
+      });
+    }
+    if (isAlive(readPid(sessionId))) return;
+    const { spawn } = require('child_process');
+    const child = spawn(process.execPath, [path.join(__dirname, 'daemon.js'), sessionId], {
+      detached: true, stdio: 'ignore', windowsHide: true,
+    });
+    writePid(sessionId, child.pid);
+    child.unref();
+  } catch {}
+}
+
+module.exports = { ensureDir, write, read, readAllSessions, remove, writePid, readPid, isAlive, ensureDaemon };
