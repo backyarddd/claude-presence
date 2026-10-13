@@ -17,7 +17,7 @@ claude-presence setup
 
 > **Install from GitHub, not from the npm name.** The `claude-presence` name on npm belongs to an unrelated package by a different author. Installing from GitHub requires `git` on your PATH.
 
-That's it. Start a **new** Claude Code session and your Discord profile will show what you're working on.
+That's it. Start a **new** Claude Code session and your Discord profile will show your Claude Code session.
 
 `setup` writes hooks and a statusline into `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). Sessions that are already running do not pick them up until they restart.
 
@@ -25,7 +25,7 @@ That's it. Start a **new** Claude Code session and your Discord profile will sho
 
 | Field | Example |
 |-------|---------|
-| **Project** | `Working on my-app (main)` |
+| **Details** | `Using Claude Code` (project and branch are never shown) |
 | **Model** | `Opus 5 (1M context)`, `Sonnet 5`, `Haiku 4.5` |
 | **Tokens** | `29.5k tokens` |
 | **Cost** | `$0.70` (or `~$0.70` when estimated - see [Cost](#cost)) |
@@ -55,7 +55,7 @@ The model line is Claude Code's own display name, so it tracks whatever you have
 ### Multi-Session Support
 
 Running multiple Claude Code instances? The presence automatically:
-- Shows the count: `Working on my-app (main) [3 sessions]`
+- Shows the count: `Using Claude Code [3 sessions]`
 - Aggregates total tokens and cost across all sessions
 - Displays the most recently active session's details
 - Shows per-session token breakdown on hover

@@ -93,18 +93,8 @@ function buildPresence(aggregated) {
   if (!aggregated) return null;
 
   const { primary, sessionCount, totals } = aggregated;
-  const project = primary.workspace?.project || 'Unknown';
-  const branch = primary.workspace?.branch;
-
-  // Details line: project info + instance count
-  let details;
-  if (sessionCount > 1) {
-    details = branch
-      ? `Working on ${project} (${branch}) [${sessionCount} sessions]`
-      : `Working on ${project} [${sessionCount} sessions]`;
-  } else {
-    details = branch ? `Working on ${project} (${branch})` : `Working on ${project}`;
-  }
+  // Details line: deliberately omits project and branch so the public profile doesn't reveal what's being worked on
+  const details = sessionCount > 1 ? `Using Claude Code [${sessionCount} sessions]` : 'Using Claude Code';
 
   // State line: aggregated cost, tokens, model
   const cost = `${totals.cost_estimated ? '~' : ''}$${totals.cost_usd.toFixed(2)}`;
