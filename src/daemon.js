@@ -24,6 +24,35 @@ function formatTokens(n) {
   return String(n);
 }
 
+const TAGLINES = [
+  'Saving the world...',
+  'Reticulating splines...',
+  'Bribing the compiler...',
+  'Negotiating with semicolons...',
+  'Herding cats...',
+  'Feeding the hamsters...',
+  'Consulting the rubber duck...',
+  'Turning it off and on again...',
+  'Summoning ancient knowledge...',
+  'Definitely not breaking prod...',
+  'Brewing more coffee...',
+  'Untangling spaghetti...',
+  'Asking the robot nicely...',
+  'Dividing by zero...',
+  'Plotting world domination...',
+  'Pretending to be busy...',
+  'Polishing pixels...',
+  'Outsmarting the bugs...',
+  'Reading the manual (finally)...',
+  'Doing important things...',
+];
+const TAGLINE_ROTATE_MS = 10 * 60_000;
+
+// Rotates on a fixed time bucket rather than per update, since presence refreshes on every bridge write and would flicker
+function pickTagline() {
+  return TAGLINES[Math.floor(Date.now() / TAGLINE_ROTATE_MS) % TAGLINES.length];
+}
+
 function activityToImageKey(status) {
   switch (status) {
     case 'coding': return config.IMAGE_KEYS.coding;
@@ -93,8 +122,9 @@ function buildPresence(aggregated) {
   if (!aggregated) return null;
 
   const { primary, sessionCount, totals } = aggregated;
-  // Details line: deliberately omits project and branch so the public profile doesn't reveal what's being worked on
-  const details = sessionCount > 1 ? `Using Claude Code [${sessionCount} sessions]` : 'Using Claude Code';
+  // Details line: random filler instead of project/branch so the public profile doesn't reveal what's being worked on
+  const filler = pickTagline();
+  const details = sessionCount > 1 ? `${filler} [${sessionCount} sessions]` : filler;
 
   // State line: aggregated cost, tokens, model
   const cost = `${totals.cost_estimated ? '~' : ''}$${totals.cost_usd.toFixed(2)}`;

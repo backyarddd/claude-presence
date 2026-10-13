@@ -25,7 +25,7 @@ That's it. Start a **new** Claude Code session and your Discord profile will sho
 
 | Field | Example |
 |-------|---------|
-| **Details** | `Using Claude Code` (project and branch are never shown) |
+| **Details** | Random filler like `Saving the world...`, rotating every 10 min (project and branch are never shown) |
 | **Model** | `Opus 5 (1M context)`, `Sonnet 5`, `Haiku 4.5` |
 | **Tokens** | `29.5k tokens` |
 | **Cost** | `$0.70` (or `~$0.70` when estimated - see [Cost](#cost)) |
@@ -55,7 +55,7 @@ The model line is Claude Code's own display name, so it tracks whatever you have
 ### Multi-Session Support
 
 Running multiple Claude Code instances? The presence automatically:
-- Shows the count: `Using Claude Code [3 sessions]`
+- Shows the count: `Saving the world... [3 sessions]`
 - Aggregates total tokens and cost across all sessions
 - Displays the most recently active session's details
 - Shows per-session token breakdown on hover
