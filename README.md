@@ -27,7 +27,7 @@ That's it. Start a **new** Claude Code session and your Discord profile will sho
 |-------|---------|
 | **Details** | Random filler like `Saving the world...`, rotating every 10 min (project and branch are never shown) |
 | **Model** | `Opus 5 (1M context)`, `Sonnet 5`, `Haiku 4.5` |
-| **Tokens** | `29.5k tokens` |
+| **Tokens** | `2.4M tokens` (input incl. cache reads/writes + output, main thread and subagents) |
 | **Cost** | `$0.70` (or `~$0.70` when estimated - see [Cost](#cost)) |
 | **Elapsed** | `01:23:45 elapsed` |
 | **Activity** | `Editing app.tsx`, `Running terminal command`, `Searching codebase` |
@@ -62,32 +62,36 @@ Running multiple Claude Code instances? The presence automatically:
 
 ## Cost
 
-Claude Code reports the session's actual cost in the statusline payload, and that number is used whenever it is present. Only when it is missing does claude-presence estimate the cost from token counts and the pricing table below - an estimate is prefixed with `~` on Discord and labelled `(estimated from tokens)` in `claude-presence status`.
+Tokens and cost are summed from the session transcript and its subagent transcripts (`~/.claude/projects/<project>/<session>.jsonl` and `<session>/subagents/*.jsonl`), read incrementally so each render only parses new lines. Cost uses the pricing table below, with cache writes at 1.25x (5-minute) or 2x (1-hour) the input rate, cache reads at a per-model rate, and fast mode at 2x. The larger of that figure and Claude Code's own reported cost is shown. Only when neither is available does claude-presence estimate the cost from context-window token counts - an estimate is prefixed with `~` on Discord and labelled `(estimated from tokens)` in `claude-presence status`.
 
-Claude API list pricing, USD per million tokens ([source](https://platform.claude.com/docs/en/about-claude/pricing), checked 2026-09-01):
+Claude API list pricing, USD per million tokens ([source](https://platform.claude.com/docs/en/about-claude/pricing), checked 2026-11-10):
 
-| Model | Model ID | Input | Output |
-|-------|----------|-------|--------|
-| Claude Fable 5.1 | `claude-fable-5-1` | $10.00 | $50.00 |
-| Claude Fable 5 | `claude-fable-5` | $10.00 | $50.00 |
-| Claude Opus 5 | `claude-opus-5` | $5.00 | $25.00 |
-| Claude Opus 4.8 | `claude-opus-4-8` | $5.00 | $25.00 |
-| Claude Opus 4.7 | `claude-opus-4-7` | $5.00 | $25.00 |
-| Claude Opus 4.6 | `claude-opus-4-6` | $5.00 | $25.00 |
-| Claude Opus 4.5 | `claude-opus-4-5` | $5.00 | $25.00 |
-| Claude Sonnet 5 | `claude-sonnet-5` | $2.00 | $10.00 |
-| Claude Sonnet 4.6 | `claude-sonnet-4-6` | $3.00 | $15.00 |
-| Claude Sonnet 4.5 | `claude-sonnet-4-5` | $3.00 | $15.00 |
-| Claude Haiku 4.5 | `claude-haiku-4-5` | $1.00 | $5.00 |
+| Model | Model ID | Input | Output | Cache read |
+|-------|----------|-------|--------|------------|
+| Claude Fable 5.2 | `claude-fable-5-2` | $8.00 | $40.00 | 0.025x |
+| Claude Fable 5.1 | `claude-fable-5-1` | $10.00 | $50.00 | 0.025x |
+| Claude Fable 5 | `claude-fable-5` | $10.00 | $50.00 | 0.1x |
+| Claude Opus 5.5 | `claude-opus-5-5` | $4.00 | $20.00 | 0.05x |
+| Claude Opus 5 | `claude-opus-5` | $5.00 | $25.00 | 0.1x |
+| Claude Opus 4.8 | `claude-opus-4-8` | $5.00 | $25.00 | 0.1x |
+| Claude Opus 4.7 | `claude-opus-4-7` | $5.00 | $25.00 | 0.1x |
+| Claude Opus 4.6 | `claude-opus-4-6` | $5.00 | $25.00 | 0.1x |
+| Claude Opus 4.5 | `claude-opus-4-5` | $5.00 | $25.00 | 0.1x |
+| Claude Sonnet 5.5 | `claude-sonnet-5-5` | $2.00 | $10.00 | 0.05x |
+| Claude Sonnet 5 | `claude-sonnet-5` | $2.00 | $10.00 | 0.1x |
+| Claude Sonnet 4.6 | `claude-sonnet-4-6` | $3.00 | $15.00 | 0.1x |
+| Claude Sonnet 4.5 | `claude-sonnet-4-5` | $3.00 | $15.00 | 0.1x |
+| Claude Haiku 5.5 | `claude-haiku-5-5` | $0.10 ($0.50 over 100K-token prompts) | $0.50 ($2.50 over 100K-token prompts) | 0.1x |
+| Claude Haiku 4.5 | `claude-haiku-4-5` | $1.00 | $5.00 | 0.1x |
 
-Deprecated models still served on Bedrock and Google Cloud are also in the table (Opus 4.1 and Opus 4 at $15/$75, Sonnet 4 at $3/$15), as are `claude-mythos-5-1` and `claude-mythos-5`, which price the same as their Fable counterparts. An unrecognised model id falls back to Opus-tier pricing, since an unknown id is usually a model newer than this table.
+Deprecated models still served on Bedrock and Google Cloud are also in the table (Opus 4.1 and Opus 4 at $15/$75, Sonnet 4 at $3/$15), as are `claude-mythos-5-2`, `claude-mythos-5-1` and `claude-mythos-5`, which price the same as their Fable counterparts. An unrecognised model id falls back to Opus-tier pricing, since an unknown id is usually a model newer than this table.
 
 Notes on how the estimate is derived:
 
 - **Model ids are normalised before lookup.** Claude Code reports ids like `claude-opus-5[1m]`; the context-tier suffix is stripped, and dated snapshots (`claude-haiku-4-5-20251001`) and platform prefixes (`anthropic.claude-opus-5`) resolve to the right entry.
 - **The 1M-token context window is billed at standard rates.** There is no long-context premium to model.
-- **Prompt caching is not modelled.** The statusline reports only total input and output tokens, with no cache breakdown. Cache reads bill at 0.1x the input rate (0.025x on Fable 5.1), so a real session with a warm cache costs meaningfully less than the estimate. Treat an estimate as an upper bound.
-- **Fast mode is not modelled.** `/fast` bills Opus 5 and Opus 4.8 at $10/$50, and the statusline does not report the speed setting - so an estimate for a fast-mode session is low. Claude Code's own reported cost, which is used whenever available, has this right.
+- **Prompt caching is modelled.** Cache writes and reads are priced from each response's per-response `usage`. This only applies to the transcript-based figure, not the `~` fallback, which sees only context-window token counts and has no cache breakdown.
+- **Fast mode is modelled.** Responses with `usage.speed` set to `fast` bill at 2x. This only applies to the transcript-based figure, not the `~` fallback.
 
 ## Commands
 

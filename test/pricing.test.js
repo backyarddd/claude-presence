@@ -6,8 +6,20 @@ const config = require('../src/config');
 test('exact model ids resolve to list pricing', () => {
   assert.deepStrictEqual(config.resolvePricing('claude-opus-5'), { input: 5, output: 25 });
   assert.deepStrictEqual(config.resolvePricing('claude-sonnet-5'), { input: 2, output: 10 });
-  assert.deepStrictEqual(config.resolvePricing('claude-fable-5-1'), { input: 10, output: 50 });
+  assert.deepStrictEqual(config.resolvePricing('claude-fable-5-1'), { input: 10, output: 50, cacheRead: 0.025 });
   assert.deepStrictEqual(config.resolvePricing('claude-haiku-4-5'), { input: 1, output: 5 });
+});
+
+test('current-generation models resolve to their own entry', () => {
+  assert.deepStrictEqual(config.resolvePricing('claude-opus-5-5'), { input: 4, output: 20, cacheRead: 0.05 });
+  assert.deepStrictEqual(config.resolvePricing('claude-opus-5-5[1m]'), { input: 4, output: 20, cacheRead: 0.05 });
+  assert.deepStrictEqual(config.resolvePricing('claude-sonnet-5-5'), { input: 2, output: 10, cacheRead: 0.05 });
+  assert.deepStrictEqual(config.resolvePricing('claude-fable-5-2'), { input: 8, output: 40, cacheRead: 0.025 });
+  assert.deepStrictEqual(config.resolvePricing('claude-mythos-5-2'), { input: 8, output: 40, cacheRead: 0.025 });
+  const haiku = config.resolvePricing('claude-haiku-5-5');
+  assert.strictEqual(haiku.input, 0.1);
+  assert.strictEqual(haiku.output, 0.5);
+  assert.deepStrictEqual(config.resolvePricing('claude-opus-5'), { input: 5, output: 25 });
 });
 
 test('context-tier suffix from Claude Code is stripped', () => {
@@ -24,7 +36,7 @@ test('dated snapshots and platform prefixes resolve', () => {
 
 test('longer alias wins over a shorter one it contains', () => {
   assert.deepStrictEqual(config.resolvePricing('claude-fable-5'), { input: 10, output: 50 });
-  assert.deepStrictEqual(config.resolvePricing('claude-fable-5-1'), { input: 10, output: 50 });
+  assert.deepStrictEqual(config.resolvePricing('claude-fable-5-1'), { input: 10, output: 50, cacheRead: 0.025 });
 });
 
 test('a trailing digit is a different model, not a snapshot', () => {

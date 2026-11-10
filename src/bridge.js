@@ -40,6 +40,7 @@ function remove(sessionId) {
   try { fs.unlinkSync(config.bridgePath(sessionId)); } catch {}
   try { fs.unlinkSync(config.bridgePath(sessionId) + '.tmp'); } catch {}
   try { fs.unlinkSync(config.pidPath(sessionId)); } catch {}
+  try { fs.unlinkSync(config.usagePath(sessionId)); } catch {}
 }
 
 function writePid(sessionId, pid) {

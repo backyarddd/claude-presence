@@ -39,22 +39,37 @@ async function main() {
       }
 
       // Token usage
+      const usageTracker = require('./usage');
+      let transcriptUsage = null;
+      try {
+        transcriptUsage = usageTracker.collectUsage(sessionId, input.transcript_path);
+      } catch {
+        // Unreadable transcript: fall back to the statusline's own context-window counts below.
+        transcriptUsage = null;
+      }
+
+      // Context-window counts cover only the main thread and reset on /clear and compaction,
+      // so they are the fallback; the transcript sum includes subagents and cache tokens.
       const tokensIn = input.context_window?.total_input_tokens || 0;
       const tokensOut = input.context_window?.total_output_tokens || 0;
+      if (transcriptUsage) {
+        bridgeData.tokens = transcriptUsage.tokens;
+      } else if (input.context_window) {
+        bridgeData.tokens = { in: tokensIn, out: tokensOut, total: tokensIn + tokensOut };
+      }
       if (input.context_window) {
-        bridgeData.tokens = {
-          in: tokensIn,
-          out: tokensOut,
-          total: tokensIn + tokensOut,
-        };
         bridgeData.context_remaining_pct = input.context_window.remaining_percentage;
       }
 
-      // Cost - use Claude Code's value if available, otherwise calculate from tokens.
+      // Cost - transcript sum or Claude Code's value, otherwise estimate from context-window tokens.
       // Always write both keys: bridge.write merges, so leaving them out would keep a
       // previous render's cost after a /clear resets the context window.
-      if (input.cost && input.cost.total_cost_usd != null) {
-        bridgeData.cost_usd = input.cost.total_cost_usd;
+      // Claude Code's figure resets when a session is resumed and misses background subagents
+      // that finish after the last render; the transcript sum misses non-token charges such as
+      // web search. Take the larger.
+      const reportedCost = Number.isFinite(input.cost?.total_cost_usd) ? input.cost.total_cost_usd : null;
+      if (transcriptUsage || reportedCost !== null) {
+        bridgeData.cost_usd = Math.max(transcriptUsage ? transcriptUsage.cost_usd : 0, reportedCost ?? 0);
         bridgeData.cost_estimated = false;
       } else if (tokensIn || tokensOut) {
         bridgeData.cost_usd = config.calculateCost(modelId, tokensIn, tokensOut);
