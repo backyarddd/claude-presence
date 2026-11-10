@@ -234,6 +234,6 @@ claude-presence setup
 
 ## License
 
-MIT
+MIT, see [LICENSE](LICENSE). Copyright (c) 2026 backyarddd.
 
 Status icons from [Heroicons](https://heroicons.com) (MIT License).
