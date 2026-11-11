@@ -69,6 +69,7 @@ async function main() {
         updated_at: Math.floor(Date.now() / 1000),
       },
     });
+    bridge.ensureDaemon(sessionId, input.cwd); // [patch]
   } catch {
     // Never break Claude Code
   }

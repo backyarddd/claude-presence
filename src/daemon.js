@@ -10,10 +10,27 @@ if (!sessionId) {
   process.exit(1);
 }
 
+// [patch] Exit if another live daemon already owns this session
+{
+  const other = bridge.readPid(sessionId);
+  if (other && other !== process.pid && bridge.isAlive(other)) process.exit(0);
+}
 // Write PID so session-end can kill us
 bridge.writePid(sessionId, process.pid);
 
+// [patch] Never die on a Discord IPC error; log it and let the reconnect loop recover
+function logError(err) {
+  try {
+    fs.appendFileSync(path.join(config.BRIDGE_DIR, 'daemon.log'),
+      `${new Date().toISOString()} [${sessionId}] ${err && err.stack || err}\n`);
+  } catch {}
+}
+process.on('uncaughtException', (err) => { logError(err); discord.connected = false; discord._scheduleReconnect(); });
+process.on('unhandledRejection', (err) => { logError(err); });
+
 const discord = new DiscordPresence();
+// [patch] Re-send presence after every (re)connect, e.g. when Discord restarts
+discord.onReady = () => { onBridgeChange().catch(() => {}); };
 let idleTimer = null;
 let orphanTimer = null;
 
